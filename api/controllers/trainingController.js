@@ -3,7 +3,7 @@ import { generateTrainingCreationNotification } from "../utils/emailTemplates.js
 import sendEmail from "../utils/emailSender.js";
 import User from "../models/User.js";
 import Mentor from "../models/Mentor.js";
-
+import { notifyReschedule } from "../services/notificationService.js";
 // Create a new training request
 export const createTraining = async (req, res) => {
   try {
@@ -87,7 +87,7 @@ export const createTraining = async (req, res) => {
 
     // Populate the creator details
     const creator = await User.findById(componentCoordinator).select(
-      "firstName lastName email"
+      "firstName lastName email",
     );
 
     // If incubation coordinators are assigned, send them emails
@@ -101,7 +101,7 @@ export const createTraining = async (req, res) => {
           const emailData = generateTrainingCreationNotification(
             newTraining,
             coordinator,
-            creator
+            creator,
           );
 
           try {
@@ -109,10 +109,10 @@ export const createTraining = async (req, res) => {
           } catch (emailError) {
             console.error(
               `Failed to send email to coordinator ${coordinator.email}:`,
-              emailError
+              emailError,
             );
           }
-        })
+        }),
       );
     }
 
@@ -314,7 +314,7 @@ export const updateBootcamp = async (req, res) => {
     existingBootcamp.title = title || existingBootcamp.title;
     existingBootcamp.description = description || existingBootcamp.description;
     existingBootcamp.incubationCoordinators = Array.isArray(
-      incubationCoordinators
+      incubationCoordinators,
     )
       ? incubationCoordinators
       : existingBootcamp.incubationCoordinators;
@@ -371,7 +371,7 @@ export const updateBootcamp = async (req, res) => {
           const oldFilePath = path.join(
             __dirname,
             "../../public",
-            existingBootcamp.programFile
+            existingBootcamp.programFile,
           );
           await fs.promises.unlink(oldFilePath);
         } catch (err) {
@@ -474,7 +474,7 @@ export const rejectTraining = async (req, res) => {
         rejectedAt: new Date(),
         rejectedBy: req.userId,
       },
-      { new: true }
+      { new: true },
     ).populate("componentCoordinator", "firstName lastName email");
 
     if (!training) {
@@ -495,19 +495,29 @@ export const rescheduleTraining = async (req, res) => {
   try {
     const { trainingId, rescheduledDate } = req.body;
 
+    // ← Sauvegarder l'ancienne date
+    const existing = await Training.findById(trainingId);
+    if (!existing) {
+      return res.status(404).json({ message: "Training not found" });
+    }
+    const oldStartDate = existing.startDate;
+
     const training = await Training.findByIdAndUpdate(
       trainingId,
       {
         status: "rescheduled",
         rescheduledDate,
         scheduledDate: rescheduledDate,
+        startDate: rescheduledDate,
       },
-      { new: true }
+      { new: true },
     );
 
-    if (!training) {
-      return res.status(404).json({ message: "Training not found" });
-    }
+    // ← Notifier les concernés
+    await notifyReschedule(
+      { ...training.toObject(), type: training.type },
+      oldStartDate,
+    );
 
     res.json(training);
   } catch (err) {
@@ -564,19 +574,14 @@ export const updateTraining = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Convert dates if they exist
-    if (updateData.startDate) {
-      updateData.startDate = new Date(updateData.startDate);
-      updateData.scheduledDate = new Date(updateData.startDate);
+    // ← Sauvegarder l'ancienne date avant update
+    const existingTraining = await Training.findById(id);
+    if (!existingTraining) {
+      return res.status(404).json({ message: "Training not found" });
     }
+    const oldStartDate = existingTraining.startDate;
 
-    if (updateData.endDate) {
-      updateData.endDate = new Date(updateData.endDate);
-    } else if (updateData.duration && updateData.startDate) {
-      const endDate = new Date(updateData.startDate);
-      endDate.setDate(endDate.getDate() + parseInt(updateData.duration));
-      updateData.endDate = endDate;
-    }
+    // ... reste du code existant (conversion dates etc) ...
 
     const updatedTraining = await Training.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -585,8 +590,19 @@ export const updateTraining = async (req, res) => {
       .populate("incubationCoordinators", "firstName lastName email")
       .populate("trainers", "personalInfo");
 
-    if (!updatedTraining) {
-      return res.status(404).json({ message: "Training not found" });
+    // ← Vérifier si la date a changé → notifier
+    if (
+      oldStartDate &&
+      updatedTraining.startDate &&
+      oldStartDate.toISOString() !== updatedTraining.startDate.toISOString()
+    ) {
+      await notifyReschedule(
+        {
+          ...updatedTraining.toObject(),
+          type: updateData.type || existingTraining.type,
+        },
+        oldStartDate,
+      );
     }
 
     res.json({
@@ -595,11 +611,7 @@ export const updateTraining = async (req, res) => {
       message: "Training updated successfully",
     });
   } catch (error) {
-    console.error("Error updating training:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to update training",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

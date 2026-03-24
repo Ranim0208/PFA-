@@ -39,9 +39,12 @@ const isProduction = process.env.NODE_ENV === "production";
 
 // In your backend server.js
 const corsOptions = {
-  origin: ["http://localhost:3000"],
+  origin: ["http://localhost:3000", "http://192.168.100.9:5000"],
   credentials: true,
 };
+
+import startNotificationScheduler from "./jobs/notificationScheduler.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
@@ -103,6 +106,8 @@ app.use("/api/trainings", trainingsRoutes);
 app.use("/api/accepted-participants", acceptedParticipantsRouter);
 app.use("/api/trainingsTracking", TrainingsTackingRoutes);
 app.use("/api/outputs", outputsRoutes);
+app.use("/api/notifications", notificationRoutes);
+startNotificationScheduler();
 
 // Error handler
 app.use((err, req, res, next) => {

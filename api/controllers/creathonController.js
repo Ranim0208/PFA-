@@ -14,6 +14,7 @@ import {
   generateJuryInvitationEmail,
 } from "../utils/emailTemplates.js";
 import { generateInvitationToken } from "../utils/generateTokens.js";
+import { notifyReschedule } from "../services/notificationService.js";
 // Créer un nouveau créathon
 export const createCreathon = async (req, res) => {
   try {
@@ -103,7 +104,7 @@ export const getCreathonsForGeneralCoordinator = async (req, res) => {
       .populate("jury.members.user", "firstName lastName email")
       .populate(
         "mentors.members.user",
-        "firstName lastName email status accountStatus"
+        "firstName lastName email status accountStatus",
       );
 
     res.status(200).json({ creathons });
@@ -118,7 +119,7 @@ export const validateCreathonLogistics = async (req, res) => {
     const { comments } = req.body;
 
     const creathon = await Creathon.findById(creathonId).populate(
-      "coordinators.generalCoordinator"
+      "coordinators.generalCoordinator",
     );
 
     if (!creathon)
@@ -164,7 +165,7 @@ export const validateCreathonLogistics = async (req, res) => {
 };
 export const validateCreathonLogisticsByGeneralCoordinator = async (
   req,
-  res
+  res,
 ) => {
   try {
     const userId = req.user._id;
@@ -172,7 +173,7 @@ export const validateCreathonLogisticsByGeneralCoordinator = async (
     const { comments } = req.body;
 
     const creathon = await Creathon.findById(creathonId).populate(
-      "coordinators.generalCoordinator"
+      "coordinators.generalCoordinator",
     );
 
     if (!creathon)
@@ -214,7 +215,6 @@ export const getAllCreathons = async (req, res) => {
       .populate("region", "name code")
       .populate("coordinators.componentCoordinator", "firstName lastName email")
       .populate("coordinators.generalCoordinator", "firstName lastName email")
-      .populate("selectedProjects")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -286,7 +286,7 @@ export const getCreathonByRegion = async (req, res) => {
   } catch (error) {
     console.error(
       "Erreur lors de la récupération des créathons par région:",
-      error
+      error,
     );
     res.status(500).json({
       message: "Erreur lors de la récupération des créathons",
@@ -303,11 +303,27 @@ export const updateCreathon = async (req, res) => {
       return res.status(404).json({ message: "Créathon non trouvé" });
     }
 
+    // ← Sauvegarder l'ancienne date avant update
+    const oldStartDate = creathon.dates?.startDate;
+
     const updatedCreathon = await Creathon.findByIdAndUpdate(
       req.params.id,
       { ...req.body, status: "pending_validation" },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
+
+    // ← Vérifier si la date a changé → notifier
+    const newStartDate = updatedCreathon.dates?.startDate;
+    if (
+      oldStartDate &&
+      newStartDate &&
+      oldStartDate.toISOString() !== newStartDate.toISOString()
+    ) {
+      await notifyReschedule(
+        { ...updatedCreathon.toObject(), type: "creathon" },
+        oldStartDate,
+      );
+    }
 
     res.json({
       message: "Créathon mis à jour avec succès",
@@ -470,7 +486,7 @@ export const submitTeamList = async (req, res) => {
           await user.save();
         }
         return { ...mentor, userId: user._id };
-      })
+      }),
     );
 
     // Create mentor records
@@ -479,7 +495,7 @@ export const submitTeamList = async (req, res) => {
         user: mentor.userId,
         creathon: creathonId,
         status: "pending",
-      }))
+      })),
     );
 
     // Process jury members
@@ -488,7 +504,7 @@ export const submitTeamList = async (req, res) => {
         user: jury.userId,
         creathon: creathonId,
         status: "pending",
-      }))
+      })),
     );
 
     // Update creathon with team counts
@@ -498,7 +514,7 @@ export const submitTeamList = async (req, res) => {
 
     // Notify General Coordinator
     const generalCoordinator = await User.findById(
-      creathon.coordinators.generalCoordinator
+      creathon.coordinators.generalCoordinator,
     );
     await sendEmail({
       to: generalCoordinator.email,
@@ -550,7 +566,7 @@ export const sendMentorInvitations = async (req, res) => {
           status: "invited",
           accountStatus: "pending",
         },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
 
       return {
@@ -569,7 +585,7 @@ export const sendMentorInvitations = async (req, res) => {
     });
 
     const emailResults = await sendBulkEmails(
-      await Promise.all(invitationPromises)
+      await Promise.all(invitationPromises),
     );
 
     res.status(200).json({
@@ -674,7 +690,7 @@ export const exportTeamList = async (req, res) => {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=equipe-creathon-${creathonId}.csv`
+      `attachment; filename=equipe-creathon-${creathonId}.csv`,
     );
     res.status(200).send(csvContent);
   } catch (error) {
@@ -708,7 +724,7 @@ export const updateCreathonTeam = async (req, res) => {
           "jury.numberOfJuries": juryMembers.length,
         },
       },
-      { new: true }
+      { new: true },
     ).populate([
       "coordinators.componentCoordinator",
       "coordinators.generalCoordinator",
@@ -741,7 +757,7 @@ export const updateCreathonTeam = async (req, res) => {
                 (m) =>
                   `<li>${m.firstName || "Inconnu"} ${m.lastName || ""} (${
                     m.email || "Email non fourni"
-                  })</li>`
+                  })</li>`,
               )
               .join("")}
           </ul>
@@ -753,7 +769,7 @@ export const updateCreathonTeam = async (req, res) => {
                 (j) =>
                   `<li>${j.firstName || "Inconnu"} ${j.lastName || ""} (${
                     j.email || "Email non fourni"
-                  })</li>`
+                  })</li>`,
               )
               .join("")}
           </ul>
@@ -781,7 +797,7 @@ export const getMentorsByRegionId = async (req, res) => {
 
     const creathon = await Creathon.findOne({ region: regionId }).populate(
       "mentors.members.user",
-      "firstName lastName email accountStatus"
+      "firstName lastName email accountStatus",
     );
 
     if (!creathon) {
@@ -797,7 +813,7 @@ export const getMentorsByRegionId = async (req, res) => {
   } catch (error) {
     console.error(
       "Erreur lors de la récupération des mentors par région :",
-      error
+      error,
     );
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
@@ -896,7 +912,7 @@ export const sendTeamInvitations = async (req, res) => {
           // Update creathon reference
           await Creathon.updateOne(
             { _id: creathonId, [`${type}.members._id`]: member._id },
-            { $set: { [`${type}.members.$.user`]: user._id } }
+            { $set: { [`${type}.members.$.user`]: user._id } },
           );
         }
 
@@ -920,7 +936,7 @@ export const sendTeamInvitations = async (req, res) => {
               }),
             },
           },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
         const mentorInfo = {
           email: user.email,
