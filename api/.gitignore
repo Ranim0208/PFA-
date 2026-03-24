@@ -2,3 +2,4 @@
 /dist
 /.env
 /uploads
+api/config/firebase-service-account.json

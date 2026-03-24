@@ -4,6 +4,19 @@ import User from "../models/User.js";
 
 const authenticate = async (req, res, next) => {
   try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const bearerToken = authHeader.split(" ")[1];
+      try {
+        const decoded = jwt.verify(bearerToken, process.env.JWT_ACCESS_SECRET);
+        req.user = await User.findById(decoded.userId);
+        return next();
+      } catch (err) {
+        return res
+          .status(401)
+          .json({ success: false, message: "Token invalide" });
+      }
+    }
     // Only use cookies - no headers
     const accessToken = req.cookies.access;
     const refreshToken = req.cookies.refresh;

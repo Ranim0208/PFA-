@@ -63,7 +63,7 @@ const loginUser = async (req, res) => {
 
     await RefreshToken.updateMany(
       { userId: user._id, isRevoked: false },
-      { isRevoked: true }
+      { isRevoked: true },
     );
 
     const accessToken = generateAccessToken(user);
@@ -114,6 +114,7 @@ const loginUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       user: userInfo,
+      accessToken: accessToken,
     });
   } catch (error) {
     console.error("❌ Login Error:", error);
@@ -188,7 +189,7 @@ const refreshAccessToken = async (req, res) => {
       if (decoded && decoded.userId) {
         await RefreshToken.updateMany(
           { userId: decoded.userId, token: refreshToken },
-          { isRevoked: true }
+          { isRevoked: true },
         );
       }
     } catch (revokeError) {
@@ -210,11 +211,11 @@ const logoutUser = async (req, res) => {
       try {
         const decoded = jwt.verify(
           refreshToken,
-          process.env.JWT_REFRESH_SECRET
+          process.env.JWT_REFRESH_SECRET,
         );
         await RefreshToken.updateMany(
           { userId: decoded.userId },
-          { isRevoked: true }
+          { isRevoked: true },
         );
       } catch (error) {
         console.error("Error revoking refresh tokens:", error);
