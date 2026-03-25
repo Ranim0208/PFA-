@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../constants/colors.dart';
 import '../services/api_service.dart';
+import '../widgets/tacir_logo.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
   final String userId;
@@ -47,18 +49,38 @@ class _NotificationPreferencesScreenState
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Préférences sauvegardées'),
-            backgroundColor: Color(0xFF16A34A),
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Préférences sauvegardées'),
+              ],
+            ),
+            backgroundColor: AppColors.cardCyan,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur lors de la sauvegarde'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Erreur lors de la sauvegarde'),
+              ],
+            ),
+            backgroundColor: AppColors.secondary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -70,118 +92,203 @@ class _NotificationPreferencesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E40AF),
-        foregroundColor: Colors.white,
-        title: const Text(
-          'Notifications',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
+      backgroundColor: AppColors.background,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : SafeArea(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E40AF).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  // ─── HEADER ───────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.notifications_active,
-                          color: Color(0xFF1E40AF),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: 16),
+                        const TacirLogo(size: 36),
                         const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Choisissez quand recevoir vos rappels avant chaque événement',
-                            style: TextStyle(color: Color(0xFF1E40AF)),
+                        const Text(
+                          'Notifications',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textDark,
                           ),
                         ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'Rappels',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A5F),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Options
-                  _buildToggleCard(
-                    icon: Icons.calendar_today,
-                    title: '1 semaine avant',
-                    subtitle: 'Recevez un rappel 7 jours avant l\'événement',
-                    value: _weekBefore,
-                    onChanged: (val) => setState(() => _weekBefore = val),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildToggleCard(
-                    icon: Icons.alarm,
-                    title: '1 jour avant',
-                    subtitle: 'Recevez un rappel la veille de l\'événement',
-                    value: _dayBefore,
-                    onChanged: (val) => setState(() => _dayBefore = val),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Info card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.amber.shade700),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Vous serez toujours notifié en cas de modification ou annulation d\'un événement.',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Save button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _saving ? null : _savePreferences,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E40AF),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  Expanded(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(28),
                         ),
                       ),
-                      child: _saving
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Sauvegarder',
-                              style: TextStyle(fontSize: 16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Info banner
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.primary.withOpacity(0.1),
+                                    AppColors.secondary.withOpacity(0.1),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.notifications_active,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      'Choisissez quand recevoir vos rappels avant chaque événement',
+                                      style: TextStyle(
+                                        color: AppColors.textDark,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+
+                            const SizedBox(height: 24),
+
+                            const Text(
+                              'Rappels événements',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Toggle 1 semaine
+                            _buildToggleCard(
+                              icon: Icons.calendar_today,
+                              iconColor: AppColors.primary,
+                              title: '1 semaine avant',
+                              subtitle: 'Rappel 7 jours avant l\'événement',
+                              value: _weekBefore,
+                              onChanged: (val) =>
+                                  setState(() => _weekBefore = val),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Toggle 1 jour
+                            _buildToggleCard(
+                              icon: Icons.alarm,
+                              iconColor: AppColors.secondary,
+                              title: '1 jour avant',
+                              subtitle: 'Rappel la veille de l\'événement',
+                              value: _dayBefore,
+                              onChanged: (val) =>
+                                  setState(() => _dayBefore = val),
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // Info reschedule
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.cardOrange.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.cardOrange.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    color: AppColors.cardOrange,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      'Vous serez toujours notifié en cas de modification ou annulation d\'un événement.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textGrey,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const Spacer(),
+
+                            // Save button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _saving ? null : _savePreferences,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: _saving
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      )
+                                    : const Text(
+                                        'Sauvegarder',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -192,29 +299,31 @@ class _NotificationPreferencesScreenState
 
   Widget _buildToggleCard({
     required IconData icon,
+    required Color iconColor,
     required String title,
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
-        ],
+        color: value ? iconColor.withOpacity(0.05) : AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: value ? iconColor.withOpacity(0.3) : Colors.transparent,
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E40AF).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: const Color(0xFF1E40AF), size: 22),
+            child: Icon(icon, color: iconColor, size: 22),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -223,20 +332,22 @@ class _NotificationPreferencesScreenState
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                  ),
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.textGrey,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFF1E40AF),
-          ),
+          Switch(value: value, onChanged: onChanged, activeColor: iconColor),
         ],
       ),
     );

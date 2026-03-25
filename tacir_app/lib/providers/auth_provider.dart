@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_service.dart';
-import '../services/notification_service.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -24,6 +22,9 @@ class AuthProvider extends ChangeNotifier {
     _userName = await _storage.read(key: 'user_name');
     _userRole = await _storage.read(key: 'user_role');
     _isLoggedIn = loggedIn == 'true';
+
+    print('👤 userName depuis storage: $_userName'); // ← ajoutez
+
     notifyListeners();
   }
 
@@ -34,10 +35,13 @@ class AuthProvider extends ChangeNotifier {
       // Le backend renvoie success + user (pas de token dans le body)
       if (data['success'] == true) {
         final user = data['user'];
+        print('👤 user complet: $user'); // ← ajoutez
+        print('👤 name: ${user['name']}'); // ← ajoutez
         final token = data['accessToken'];
         await _storage.write(key: 'auth_token', value: token);
         await _storage.write(key: 'user_id', value: user['id'].toString());
         await _storage.write(key: 'user_name', value: user['name']);
+        _userName = user['name'];
         await _storage.write(key: 'user_role', value: user['roles'][0]);
         await _storage.write(key: 'logged_in', value: 'true');
 
