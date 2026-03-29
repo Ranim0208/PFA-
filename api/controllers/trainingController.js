@@ -4,6 +4,10 @@ import sendEmail from "../utils/emailSender.js";
 import User from "../models/User.js";
 import Mentor from "../models/Mentor.js";
 import { notifyReschedule } from "../services/notificationService.js";
+import AcceptedParticipant from "../models/AcceptedParticipant.js";
+import Region from "../models/region.js";
+import { notifyNewEvent } from "../services/notificationService.js";
+
 // Create a new training request
 export const createTraining = async (req, res) => {
   try {
@@ -84,6 +88,10 @@ export const createTraining = async (req, res) => {
     });
 
     await newTraining.save();
+    await notifyNewEvent({
+      ...newTraining.toObject(),
+      type: newTraining.type,
+    });
 
     // Populate the creator details
     const creator = await User.findById(componentCoordinator).select(
@@ -228,7 +236,10 @@ export const createBootcamp = async (req, res) => {
     });
 
     await newTraining.save();
-
+    await notifyNewEvent({
+      ...newTraining.toObject(),
+      type: newTraining.type,
+    });
     // Rest of your code for sending emails, etc...
     // ...
 
@@ -776,5 +787,54 @@ export const getApprovedTrainings = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+export const getMyTrainings = async (req, res) => {
+  try {
+    const user = req.user;
+    const roles = user.roles;
+    let trainings = [];
+
+    if (roles.includes("IncubationCoordinator") || roles.includes("admin")) {
+      trainings = await Training.find({ status: "approved" })
+        .populate("componentCoordinator", "firstName lastName email")
+        .populate("incubationCoordinators", "firstName lastName email")
+        .populate("trainers", "personalInfo");
+    } else if (roles.includes("ComponentCoordinator")) {
+      trainings = await Training.find({
+        componentCoordinator: user._id,
+        status: "approved",
+      })
+        .populate("componentCoordinator", "firstName lastName email")
+        .populate("incubationCoordinators", "firstName lastName email")
+        .populate("trainers", "personalInfo");
+    } else if (roles.includes("mentor")) {
+      const mentor = await Mentor.findOne({ user: user._id });
+      if (mentor) {
+        trainings = await Training.find({
+          trainers: mentor._id,
+          status: "approved",
+        })
+          .populate("componentCoordinator", "firstName lastName email")
+          .populate("trainers", "personalInfo");
+      }
+    } else if (roles.includes("projectHolder")) {
+      const participant = await AcceptedParticipant.findOne({ user: user._id });
+      if (participant) {
+        const region = await Region.findById(participant.region);
+        if (region) {
+          const cohortName = `${region.name.fr} / ${region.name.ar}`;
+          trainings = await Training.find({
+            cohorts: cohortName,
+            status: "approved",
+          }).populate("componentCoordinator", "firstName lastName email");
+        }
+      }
+    }
+
+    res.json({ success: true, data: trainings });
+  } catch (error) {
+    console.error("Erreur getMyTrainings:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

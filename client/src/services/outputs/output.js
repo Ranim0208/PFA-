@@ -40,10 +40,10 @@ export async function createTrainingOutput(
   }
 
   try {
-    const response = await fetch(`${apiBaseUrl}/outputs`, {
-      method: "POST",
-      body: formData,
-    });
+    const response = await apiClient(`${apiBaseUrl}/outputs`, {
+  method: "POST",
+  body: formData,
+});
 
     return response;
   } catch (error) {

@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'providers/notification_provider.dart';
 import 'widgets/notification_overlay.dart';
+import 'providers/events_provider.dart';
 
 // Handler background — doit être top-level
 @pragma('vm:entry-point')
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => EventsProvider()),
       ],
       child: MaterialApp(
         title: 'Tacir App',

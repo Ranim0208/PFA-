@@ -6,8 +6,11 @@ const router = express.Router();
 // Enregistrer / mettre à jour le token FCM d'un appareil
 router.post("/register-token", async (req, res) => {
   const { userId, token, device } = req.body;
+  console.log("📱 Register token pour userId:", userId);
+  console.log("📱 Token:", token?.substring(0, 20));
   try {
     let pref = await NotificationPreference.findOne({ user: userId });
+    console.log("📱 Préférence existante:", pref?._id);
     if (!pref) {
       pref = new NotificationPreference({ user: userId, fcmTokens: [] });
     }

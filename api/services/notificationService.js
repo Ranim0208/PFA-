@@ -12,6 +12,15 @@ const sendNotification = async (tokens, title, body, data = {}) => {
   try {
     const response = await admin.messaging().sendEachForMulticast(message);
     console.log(`✅ ${response.successCount} notifications envoyées`);
+    console.log(`❌ ${response.failureCount} échecs`);
+    // ← Ajoutez ça
+    response.responses.forEach((resp, i) => {
+      if (!resp.success) {
+        console.error(`❌ Erreur token ${i}:`, resp.error);
+      } else {
+        console.log(`✅ Token ${i} envoyé avec succès`);
+      }
+    });
     return response;
   } catch (error) {
     console.error("❌ Erreur envoi notification:", error);
@@ -90,4 +99,47 @@ const getConcernedUsers = (event) => {
 
   return users.filter(Boolean);
 };
-export { sendNotification, notifyEventReminder, notifyReschedule };
+
+export const notifyNewEvent = async (event) => {
+  console.log("🔔 notifyNewEvent appelé pour:", event.title);
+  const concernedUserIds = getConcernedUsers(event);
+  console.log("👥 Users concernés:", concernedUserIds);
+  const preferences = await NotificationPreference.find({
+    user: { $in: concernedUserIds },
+    enabled: true,
+  });
+
+  console.log("📱 Préférences trouvées:", preferences.length);
+  console.log(
+    "📱 Tokens:",
+    preferences.flatMap((p) => p.fcmTokens),
+  );
+
+  console.log("📱 Tous les docs NotificationPreference:");
+  const allPrefs = await NotificationPreference.find({});
+  allPrefs.forEach((p) =>
+    console.log("  -", p.user?.toString(), "tokens:", p.fcmTokens?.length),
+  );
+
+  const tokens = preferences
+    .flatMap((pref) => pref.fcmTokens.map((t) => t.token))
+    .filter(Boolean);
+
+  if (!tokens.length) return;
+
+  const eventTypeLabel =
+    {
+      creathon: "Créathon",
+      formation: "Formation",
+      bootcamp: "Bootcamp",
+      mentorat: "Mentorat",
+    }[event.type] || "Événement";
+
+  await sendNotification(
+    tokens,
+    `🎉 Nouvel événement — ${eventTypeLabel}`,
+    `${event.title} a été créé`,
+    { eventId: event._id.toString(), eventType: event.type },
+  );
+};
+export { notifyEventReminder, notifyReschedule };

@@ -35,20 +35,19 @@ class ApiService {
     return response.data;
   }
 
-  Future<List<dynamic>> getEvents() async {
-    final response = await _dio.get('/creathons');
-    return response.data['creathons'] ?? [];
-  }
-
   Future<void> saveToken(String token) async {
     await _storage.write(key: 'auth_token', value: token);
   }
 
   Future<void> saveFcmToken(String userId, String fcmToken) async {
-    await _dio.post(
+    print('💾 Saving FCM token for user: $userId');
+    print('💾 Token: $fcmToken');
+    final response = await _dio.post(
       '/notifications/register-token',
       data: {'userId': userId, 'token': fcmToken, 'device': 'mobile'},
     );
+    print('💾 Response: ${response.data}');
+    print('💾 User ID envoyé: $userId');
   }
 
   Future<Map<String, dynamic>> getNotificationPreferences(String userId) async {
@@ -72,8 +71,35 @@ class ApiService {
     await _storage.delete(key: 'user_id');
   }
 
-  Future<List<dynamic>> getTrainings() async {
-    final response = await _dio.get('/trainings');
-    return response.data['data'] ?? [];
+  Future<List<dynamic>> getMyCreathons(String role, String? regionId) async {
+    try {
+      if (role == 'RegionalCoordinator' && regionId != null) {
+        final response = await _dio.get('/creathons/region/$regionId');
+        // Retourne un seul créathon
+        final data = response.data;
+        return data != null ? [data] : [];
+      } else if (role == 'ComponentCoordinator') {
+        final response = await _dio.get('/creathons/component-coordinator');
+        return response.data['creathons'] ?? [];
+      } else if (role == 'IncubationCoordinator' || role == 'admin') {
+        final response = await _dio.get('/creathons');
+        return response.data['creathons'] ?? [];
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('❌ Erreur créathons: $e');
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> getMyTrainings() async {
+    try {
+      final response = await _dio.get('/trainings/my-trainings');
+      return response.data['data'] ?? [];
+    } catch (e) {
+      print('❌ Erreur trainings: $e');
+      return [];
+    }
   }
 }

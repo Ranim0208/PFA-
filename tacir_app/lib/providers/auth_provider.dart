@@ -16,11 +16,15 @@ class AuthProvider extends ChangeNotifier {
   String? get userName => _userName;
   String? get userRole => _userRole;
 
+  String? _regionId;
+String? get regionId => _regionId;
+
   Future<void> checkAuth() async {
     final loggedIn = await _storage.read(key: 'logged_in');
     _userId = await _storage.read(key: 'user_id');
     _userName = await _storage.read(key: 'user_name');
     _userRole = await _storage.read(key: 'user_role');
+    _regionId = await _storage.read(key: 'region_id');
     _isLoggedIn = loggedIn == 'true';
 
     print('👤 userName depuis storage: $_userName'); // ← ajoutez
@@ -31,6 +35,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     try {
       final data = await _apiService.login(email, password);
+      
 
       // Le backend renvoie success + user (pas de token dans le body)
       if (data['success'] == true) {
@@ -44,12 +49,14 @@ class AuthProvider extends ChangeNotifier {
         _userName = user['name'];
         await _storage.write(key: 'user_role', value: user['roles'][0]);
         await _storage.write(key: 'logged_in', value: 'true');
+        await _storage.write(key: 'region_id', value: user['region']?['id']?.toString());
+
 
         _isLoggedIn = true;
         _userId = user['id'].toString();
         _userName = user['name'];
         _userRole = user['roles'][0];
-
+        _regionId = user['region']?['id']?.toString();
         notifyListeners();
         return true;
       }

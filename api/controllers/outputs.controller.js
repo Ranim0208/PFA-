@@ -54,8 +54,8 @@ export const createTrainingOutput = async (req, res) => {
           typeof targetParticipants === "string"
             ? JSON.parse(targetParticipants)
             : Array.isArray(targetParticipants)
-            ? targetParticipants
-            : [];
+              ? targetParticipants
+              : [];
       } catch (e) {
         console.error("Error parsing targetParticipants:", e);
         participants = [];
@@ -133,7 +133,7 @@ export const createTrainingOutput = async (req, res) => {
 
       // Prepare emails
       const emails = participantsToNotify.map((user) =>
-        generateTrainingOutputEmail(user, savedOutput, training)
+        generateTrainingOutputEmail(user, savedOutput, training),
       );
 
       // Send emails in background
@@ -141,10 +141,10 @@ export const createTrainingOutput = async (req, res) => {
         sendBulkEmails(emails)
           .then((results) => {
             const successful = results.filter(
-              (r) => r.status === "sent"
+              (r) => r.status === "sent",
             ).length;
             console.log(
-              `Sent ${successful}/${emails.length} notification emails`
+              `Sent ${successful}/${emails.length} notification emails`,
             );
           })
           .catch((err) => {
@@ -168,7 +168,7 @@ export const createTrainingOutput = async (req, res) => {
 
     if (error.name === "ValidationError") {
       const errorMessages = Object.values(error.errors).map(
-        (err) => err.message
+        (err) => err.message,
       );
       return res.status(400).json({
         success: false,
@@ -300,7 +300,7 @@ export const getTrainingOutputs = async (req, res) => {
           acc[outputId].push(submission);
           return acc;
         },
-        {}
+        {},
       );
 
       // Add submissions to each output
@@ -311,13 +311,13 @@ export const getTrainingOutputs = async (req, res) => {
         // Calculate submission statistics for this output
         const totalExpected = output.targetParticipants?.length || 0;
         const totalSubmitted = outputSubmissions.filter(
-          (s) => s.submitted
+          (s) => s.submitted,
         ).length;
         const totalApproved = outputSubmissions.filter(
-          (s) => s.approved
+          (s) => s.approved,
         ).length;
         const totalPending = outputSubmissions.filter(
-          (s) => s.submitted && !s.approved
+          (s) => s.submitted && !s.approved,
         ).length;
 
         // Check if output is overdue
@@ -342,7 +342,7 @@ export const getTrainingOutputs = async (req, res) => {
           },
           isOverdue,
           daysUntilDue: Math.ceil(
-            (new Date(output.dueDate) - new Date()) / (1000 * 60 * 60 * 24)
+            (new Date(output.dueDate) - new Date()) / (1000 * 60 * 60 * 24),
           ),
         };
       });
@@ -354,14 +354,14 @@ export const getTrainingOutputs = async (req, res) => {
           .length,
         totalApproved: participantSubmissions.filter((s) => s.approved).length,
         totalPending: participantSubmissions.filter(
-          (s) => s.submitted && !s.approved
+          (s) => s.submitted && !s.approved,
         ).length,
         overdueOutputs: outputsWithSubmissions.filter((o) => o.isOverdue)
           .length,
         completedOutputs: outputsWithSubmissions.filter(
           (o) =>
             o.submissionStats.totalExpected > 0 &&
-            o.submissionStats.totalApproved === o.submissionStats.totalExpected
+            o.submissionStats.totalApproved === o.submissionStats.totalExpected,
         ).length,
       };
 
@@ -506,7 +506,7 @@ export const getMentorSubmissions = async (req, res) => {
             .includes(searchLower) ||
           submission.participant?.user?.email
             ?.toLowerCase()
-            .includes(searchLower)
+            .includes(searchLower),
       );
     }
 
@@ -516,14 +516,14 @@ export const getMentorSubmissions = async (req, res) => {
       status: submission.approved
         ? "approved"
         : submission.submitted
-        ? "submitted"
-        : "draft",
+          ? "submitted"
+          : "draft",
       isOverdue:
         new Date(submission.output.dueDate) < new Date() &&
         !submission.approved,
       daysUntilDue: Math.ceil(
         (new Date(submission.output.dueDate) - new Date()) /
-          (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24),
       ),
     }));
 
@@ -669,7 +669,7 @@ export const getMentorSubmissionsByTraining = async (req, res) => {
           submission.participant?.user?.email
             ?.toLowerCase()
             .includes(searchLower) ||
-          submission.feedback?.toLowerCase().includes(searchLower)
+          submission.feedback?.toLowerCase().includes(searchLower),
       );
     }
 
@@ -679,14 +679,14 @@ export const getMentorSubmissionsByTraining = async (req, res) => {
       status: submission.approved
         ? "approved"
         : submission.submitted
-        ? "submitted"
-        : "draft",
+          ? "submitted"
+          : "draft",
       isOverdue:
         new Date(submission.output.dueDate) < new Date() &&
         !submission.approved,
       daysUntilDue: Math.ceil(
         (new Date(submission.output.dueDate) - new Date()) /
-          (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24),
       ),
       // Enhance attachment URLs to be complete
       attachments:
@@ -695,12 +695,12 @@ export const getMentorSubmissionsByTraining = async (req, res) => {
           url: attachment.url.startsWith("http")
             ? attachment.url
             : attachment.url.startsWith("/api/")
-            ? `${process.env.BASE_URL || "https://incubation.tacir.tn"}${
-                attachment.url
-              }`
-            : `${
-                process.env.BASE_URL || "https://incubation.tacir.tn"
-              }/api/uploads${attachment.url.replace("/uploads", "")}`,
+              ? `${process.env.BASE_URL || "https://incubation.tacir.tn"}${
+                  attachment.url
+                }`
+              : `${
+                  process.env.BASE_URL || "https://incubation.tacir.tn"
+                }/api/uploads${attachment.url.replace("/uploads", "")}`,
         })) || [],
       // Add comment count for quick reference
       commentCount: submission.comments?.length || 0,
@@ -708,13 +708,15 @@ export const getMentorSubmissionsByTraining = async (req, res) => {
       lastActivity:
         submission.comments?.length > 0
           ? new Date(
-              Math.max(...submission.comments.map((c) => new Date(c.createdAt)))
+              Math.max(
+                ...submission.comments.map((c) => new Date(c.createdAt)),
+              ),
             )
           : submission.evaluatedAt
-          ? new Date(submission.evaluatedAt)
-          : submission.submissionDate
-          ? new Date(submission.submissionDate)
-          : new Date(submission.updatedAt),
+            ? new Date(submission.evaluatedAt)
+            : submission.submissionDate
+              ? new Date(submission.submissionDate)
+              : new Date(submission.updatedAt),
     }));
 
     // Calculate statistics
@@ -895,20 +897,20 @@ export const getSubmissionDetails = async (req, res) => {
         url: attachment.url.startsWith("http")
           ? attachment.url
           : attachment.url.startsWith("/api/")
-          ? `${process.env.BASE_URL || "https://incubation.tacir.tn"}${
-              attachment.url
-            }`
-          : `${
-              process.env.BASE_URL || "https://incubation.tacir.tn"
-            }/api/uploads${attachment.url.replace("/uploads", "")}`,
+            ? `${process.env.BASE_URL || "https://incubation.tacir.tn"}${
+                attachment.url
+              }`
+            : `${
+                process.env.BASE_URL || "https://incubation.tacir.tn"
+              }/api/uploads${attachment.url.replace("/uploads", "")}`,
       })) || [];
 
     // Add computed fields
     submission.status = submission.approved
       ? "approved"
       : submission.submitted
-      ? "submitted"
-      : "draft";
+        ? "submitted"
+        : "draft";
 
     submission.isOverdue =
       new Date(submission.output.dueDate) < new Date() && !submission.approved;
@@ -1009,7 +1011,7 @@ export const getParticipantOutputs = async (req, res) => {
     const outputsWithSubmissions = outputs.map((output) => {
       const submission = submissionMap.get(output._id.toString());
       const daysUntilDue = Math.ceil(
-        (new Date(output.dueDate) - new Date()) / (1000 * 60 * 60 * 24)
+        (new Date(output.dueDate) - new Date()) / (1000 * 60 * 60 * 24),
       );
 
       // Determine which participant record this output is assigned to
@@ -1018,13 +1020,13 @@ export const getParticipantOutputs = async (req, res) => {
         // Find the intersection between output's targetParticipants and user's participantIds
         const assignedParticipant = output.targetParticipants.find((targetP) =>
           participantIds.some(
-            (pid) => pid.toString() === targetP._id.toString()
-          )
+            (pid) => pid.toString() === targetP._id.toString(),
+          ),
         );
 
         if (assignedParticipant) {
           assignedParticipantRecord = participantRecords.find(
-            (p) => p._id.toString() === assignedParticipant._id.toString()
+            (p) => p._id.toString() === assignedParticipant._id.toString(),
           );
         }
       }
@@ -1061,7 +1063,7 @@ export const getParticipantOutputs = async (req, res) => {
     let filteredOutputs = outputsWithSubmissions;
     if (status && status !== "all") {
       filteredOutputs = outputsWithSubmissions.filter(
-        (output) => output.status === status
+        (output) => output.status === status,
       );
     }
 
@@ -1069,7 +1071,7 @@ export const getParticipantOutputs = async (req, res) => {
     const stats = {
       total: outputsWithSubmissions.length,
       notStarted: outputsWithSubmissions.filter(
-        (o) => o.status === "not_started"
+        (o) => o.status === "not_started",
       ).length,
       draft: outputsWithSubmissions.filter((o) => o.status === "draft").length,
       submitted: outputsWithSubmissions.filter((o) => o.status === "submitted")
@@ -1077,7 +1079,7 @@ export const getParticipantOutputs = async (req, res) => {
       approved: outputsWithSubmissions.filter((o) => o.status === "approved")
         .length,
       overdue: outputsWithSubmissions.filter(
-        (o) => o.isOverdue && o.status !== "approved"
+        (o) => o.isOverdue && o.status !== "approved",
       ).length,
     };
 
@@ -1150,7 +1152,7 @@ export const getParticipantOutputDetails = async (req, res) => {
     const hasAccess =
       output.targetParticipants.length === 0 || // For all participants
       output.targetParticipants.some(
-        (p) => p._id.toString() === participant._id.toString()
+        (p) => p._id.toString() === participant._id.toString(),
       );
 
     if (!hasAccess) {
@@ -1171,7 +1173,7 @@ export const getParticipantOutputDetails = async (req, res) => {
 
     // Calculate time information
     const daysUntilDue = Math.ceil(
-      (new Date(output.dueDate) - new Date()) / (1000 * 60 * 60 * 24)
+      (new Date(output.dueDate) - new Date()) / (1000 * 60 * 60 * 24),
     );
 
     res.json({
@@ -1255,7 +1257,7 @@ export const updateParticipantSubmission = async (req, res) => {
         new: true,
         upsert: true,
         runValidators: true,
-      }
+      },
     )
       .populate("participant", "user")
       .populate({
@@ -1339,7 +1341,7 @@ export const submitParticipantOutput = async (req, res) => {
     const submission = await ParticipantOutput.findOneAndUpdate(
       { participant: participantRecord._id, output: outputId },
       submissionData,
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     ).populate([
       {
         path: "participant",
@@ -1394,7 +1396,7 @@ export const evaluateParticipantOutput = async (req, res) => {
         evaluatedBy: mentorId,
         evaluatedAt: new Date(),
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .populate("participant", "name email")
       .populate("evaluatedBy", "name email");

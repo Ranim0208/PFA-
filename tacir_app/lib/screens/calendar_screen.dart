@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:tacir_app/providers/events_provider.dart';
 import '../constants/colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
-import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/event_card.dart';
 import '../widgets/tacir_logo.dart';
 import 'notification_preferences_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'dart:async';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -24,18 +25,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _weekStart = DateTime.now().subtract(
     Duration(days: DateTime.now().weekday - 1),
   );
-  final ApiService _apiService = ApiService();
   DateTime _selectedDay = DateTime.now();
-  Map<DateTime, List<dynamic>> _events = {};
-  List<dynamic> _selectedEvents = [];
-  bool _loading = true;
   int _currentIndex = 0;
-
+  Timer? _refreshTimer;
   @override
   void initState() {
     super.initState();
-    _fetchEvents();
     _initNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadEvents();
+    });
+
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadEvents();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadEvents() async {
+    final auth = context.read<AuthProvider>();
+    await context.read<EventsProvider>().fetchEvents(
+      auth.userRole ?? '',
+      auth.regionId,
+    );
   }
 
   Future<void> _initNotifications() async {
@@ -43,47 +60,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (auth.userId != null) {
       final notifService = NotificationService();
       await notifService.initialize(auth.userId!, context);
-    }
-  }
-
-  Future<void> _fetchEvents() async {
-    try {
-      final creathons = await _apiService.getEvents();
-      final trainings = await _apiService.getTrainings();
-
-      final allEvents = [
-        ...creathons.map(
-          (e) => Map<String, dynamic>.from(e)..['type'] = 'creathon',
-        ),
-        ...trainings.map(
-          (e) =>
-              Map<String, dynamic>.from(e)..['type'] = e['type'] ?? 'formation',
-        ),
-      ];
-
-      final Map<DateTime, List<dynamic>> eventMap = {};
-      for (final event in allEvents) {
-        final rawDate = event['dates']?['startDate'] ?? event['startDate'];
-        if (rawDate == null) continue;
-        final startDate = DateTime.parse(rawDate).toLocal();
-        final day = DateTime(startDate.year, startDate.month, startDate.day);
-        eventMap[day] = [...(eventMap[day] ?? []), event];
-      }
-
-      setState(() {
-        _events = eventMap;
-        _selectedEvents =
-            eventMap[DateTime(
-              _selectedDay.year,
-              _selectedDay.month,
-              _selectedDay.day,
-            )] ??
-            [];
-        _loading = false;
-      });
-    } catch (e) {
-      print('❌ Erreur: $e');
-      setState(() => _loading = false);
     }
   }
 
@@ -105,7 +81,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _onDaySelected(DateTime day) {
     setState(() {
       _selectedDay = day;
-      _selectedEvents = _events[DateTime(day.year, day.month, day.day)] ?? [];
     });
   }
 
@@ -113,7 +88,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  Widget _buildMonthView() {
+  DateTime _normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  // ✅ Pass events as parameter
+  Widget _buildMonthView(Map<DateTime, List<dynamic>> events) {
     final firstDay = DateTime(_selectedDay.year, _selectedDay.month, 1);
     final lastDay = DateTime(_selectedDay.year, _selectedDay.month + 1, 0);
     final startOffset = firstDay.weekday - 1;
@@ -161,8 +141,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             );
             final isSelected = isSameDay(day, _selectedDay);
             final isToday = isSameDay(day, DateTime.now());
-            final hasEvent =
-                _events[DateTime(day.year, day.month, day.day)] != null;
+            final normalizedDay = _normalizeDate(day);
+            final hasEvent = events[normalizedDay] != null;
 
             return GestureDetector(
               onTap: () => _onDaySelected(day),
@@ -213,10 +193,76 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // ✅ Pass events as parameter
+  Widget _buildWeekView(Map<DateTime, List<dynamic>> events) {
+    final dayNames = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(7, (i) {
+        final day = _weekStart.add(Duration(days: i));
+        final isSelected = isSameDay(day, _selectedDay);
+        final normalizedDay = _normalizeDate(day);
+        final hasEvent = events[normalizedDay] != null;
+
+        return GestureDetector(
+          onTap: () => _onDaySelected(day),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 40,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  dayNames[i],
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isSelected ? Colors.white70 : AppColors.textGrey,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: hasEvent
+                        ? (isSelected ? Colors.white : AppColors.secondary)
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   // ─── PAGE HOME ────────────────────────────────
   Widget _buildHomePage() {
     final auth = context.watch<AuthProvider>();
+    final eventsProvider = context.watch<EventsProvider>();
+    final events = eventsProvider.events;
+    final loading = eventsProvider.loading;
     final now = DateTime.now();
+
+    // ✅ Get selected day events from provider (auto-updates!)
+    final normalizedSelectedDay = _normalizeDate(_selectedDay);
+    final selectedEvents = events[normalizedSelectedDay] ?? [];
 
     return Column(
       children: [
@@ -255,8 +301,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                             Consumer<NotificationProvider>(
                               builder: (context, provider, _) {
-                                if (provider.unreadCount == 0)
+                                if (provider.unreadCount == 0) {
                                   return const SizedBox();
+                                }
                                 return Positioned(
                                   right: 0,
                                   top: 0,
@@ -405,133 +452,76 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               const SizedBox(height: 8),
 
-              // Vue semaine ou mois
+              // ✅ Vue semaine ou mois - pass events as parameter
               if (!_showMonthView)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(7, (i) {
-                    final day = _weekStart.add(Duration(days: i));
-                    final isSelected = isSameDay(day, _selectedDay);
-                    final hasEvent =
-                        _events[DateTime(day.year, day.month, day.day)] != null;
-                    final dayNames = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
-
-                    return GestureDetector(
-                      onTap: () => _onDaySelected(day),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 40,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              dayNames[i],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isSelected
-                                    ? Colors.white70
-                                    : AppColors.textGrey,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${day.day}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textDark,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: hasEvent
-                                    ? (isSelected
-                                          ? Colors.white
-                                          : AppColors.secondary)
-                                    : Colors.transparent,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                )
+                _buildWeekView(events)
               else
-                _buildMonthView(),
+                _buildMonthView(events),
             ],
           ),
         ),
 
         const SizedBox(height: 20),
 
-        // Events list
+        // ✅ Events list - now using selectedEvents from provider
         Expanded(
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                  child: Text(
-                    _selectedEvents.isEmpty
-                        ? 'Aucun événement'
-                        : 'Programme du ${DateFormat('d MMMM', 'fr').format(_selectedDay)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: _loadEvents,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                    child: Text(
+                      selectedEvents.isEmpty
+                          ? 'Aucun événement'
+                          : 'Programme du ${DateFormat('d MMMM', 'fr').format(_selectedDay)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: _selectedEvents.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.event_available,
-                                size: 56,
-                                color: Colors.grey.shade200,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Aucun événement ce jour',
-                                style: TextStyle(color: Colors.grey.shade400),
-                              ),
-                            ],
+                  Expanded(
+                    child: selectedEvents.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.event_available,
+                                  size: 56,
+                                  color: Colors.grey.shade200,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Aucun événement ce jour',
+                                  style: TextStyle(color: Colors.grey.shade400),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: selectedEvents.length,
+                            itemBuilder: (context, index) {
+                              final event = selectedEvents[index];
+                              return EventCard(
+                                event: event,
+                                color: _getEventColor(event['type'] as String?),
+                              );
+                            },
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: _selectedEvents.length,
-                          itemBuilder: (context, index) {
-                            final event = _selectedEvents[index];
-                            return EventCard(
-                              event: event,
-                              color: _getEventColor(event['type'] as String?),
-                            );
-                          },
-                        ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -541,9 +531,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final eventsProvider = context.watch<EventsProvider>();
+    final loading = eventsProvider.loading;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _loading
+      body: loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )

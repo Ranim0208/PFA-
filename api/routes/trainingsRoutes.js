@@ -11,6 +11,7 @@ import {
   updateBootcamp,
   getTrainingsForMentor,
   getApprovedTrainings,
+   getMyTrainings,
 } from "../controllers/trainingController.js";
 import authenticate from "../middlewares/authMiddleware.js";
 import { authorizeRoles } from "../middlewares/authorizeRoles.js";
@@ -71,6 +72,10 @@ router.patch(
   authorizeRoles("IncubationCoordinator"),
   rejectTraining
 );
+
+
+router.get("/my-trainings", authenticate, getMyTrainings);
+
 router.get("/", authenticate, getTrainings);
 //update training by id
 router.put(
@@ -87,6 +92,7 @@ router.get(
   getTrainingById
 );
 
-// Get training details by ID
-// router.get("/:id", authenticate, getTrainingById);
+
+
+
 export default router;

@@ -347,7 +347,7 @@ class _NotificationPreferencesScreenState
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeColor: iconColor),
+          Switch(value: value, onChanged: onChanged, activeThumbColor: iconColor),
         ],
       ),
     );

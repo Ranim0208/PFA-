@@ -1,6 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tacir_app/providers/auth_provider.dart';
+import 'package:tacir_app/providers/events_provider.dart';
 import '../model/app_notification.dart';
 import '../providers/notification_provider.dart';
 import 'api_service.dart';
@@ -37,6 +39,13 @@ class NotificationService {
 
         if (context.mounted) {
           await context.read<NotificationProvider>().addNotification(notif);
+
+          // ← Rafraîchir le calendrier automatiquement
+          final auth = context.read<AuthProvider>();
+          await context.read<EventsProvider>().fetchEvents(
+            auth.userRole ?? '',
+            auth.regionId,
+          );
         }
       });
 

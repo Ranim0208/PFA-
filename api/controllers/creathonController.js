@@ -15,6 +15,7 @@ import {
 } from "../utils/emailTemplates.js";
 import { generateInvitationToken } from "../utils/generateTokens.js";
 import { notifyReschedule } from "../services/notificationService.js";
+import { notifyNewEvent } from "../services/notificationService.js";
 // Créer un nouveau créathon
 export const createCreathon = async (req, res) => {
   try {
@@ -62,7 +63,10 @@ export const createCreathon = async (req, res) => {
     });
 
     await creathon.save();
-
+    await notifyNewEvent({
+      ...creathon.toObject(),
+      type: "creathon",
+    });
     res.status(201).json({
       message: "Créathon créé avec succès",
       creathon,
@@ -141,6 +145,13 @@ export const validateCreathonLogistics = async (req, res) => {
 
     creathon.status = "pending_validation";
     await creathon.save();
+    console.log("✅ Créathon sauvegardé, envoi notification...");
+    try {
+      await notifyNewEvent({ ...creathon.toObject(), type: "creathon" });
+      console.log("✅ Notification envoyée");
+    } catch (notifError) {
+      console.error("❌ Erreur notification:", notifError);
+    }
 
     // Email notification to general coordinator
     const generalEmail = creathon.coordinators.generalCoordinator?.email;
